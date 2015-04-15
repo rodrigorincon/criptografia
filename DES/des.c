@@ -396,11 +396,11 @@ unsigned char* sbox(unsigned char *texto){
 	
 	unsigned char sbox_input[8];
 	sbox_input[0] = texto[0]&0xFC;
-	sbox_input[1] = (texto[0]&0x03)<<6 | (texto[1]&0xF0)>>4;
+	sbox_input[1] = (texto[0]&0x03)<<6 | (texto[1]&0xF0)>>2;
 	sbox_input[2] = (texto[1]&0x0F)<<4 | (texto[2]&0xc0)>>4;
 	sbox_input[3] = (texto[2]&0x3F)<<2;
 	sbox_input[4] = texto[3]&0xFC;
-	sbox_input[5] = (texto[3]&0x03)<<6 | (texto[4]&0xF0)>>4;
+	sbox_input[5] = (texto[3]&0x03)<<6 | (texto[4]&0xF0)>>2;
 	sbox_input[6] = (texto[4]&0x0F)<<4 | (texto[5]&0xc0)>>4;
 	sbox_input[7] = (texto[5]&0x3F)<<2;
 
@@ -471,7 +471,6 @@ unsigned char* funcao_f(unsigned char *texto, unsigned char *chave){
 	texto_expandido = xor(texto_expandido, chave, 6);
 	unsigned char *encript = sbox(texto_expandido);
 	tableP(encript);
-
 	free(texto_expandido);
 	return encript;
 }
@@ -483,7 +482,7 @@ int main(){
 	
 	permutacaoInicial(texto);	
 	unsigned char *chave_real = permutacaoChave1(chave);//transforma a chave de 64 para 56 bits
-
+	
 	int numero_round;
 	int i;
 	for (numero_round = 0; numero_round < NUM_ROUNDS; ++numero_round){
@@ -505,16 +504,11 @@ int main(){
 			texto[byte] = byte<SIZE_TEXTO/2 ? novo_left_texto[byte] : novo_right_texto[byte%4];
 		free(chave_round);
 		free(encript);
-
-		for (i = 0; i < SIZE_TEXTO; ++i)
-			printf("%x ",texto[i] );
-		printf("\n");
 	}
 
 	swap32its(texto);
 	permutacaoInversa(texto);	
 
-	printf("\n");
 	for (i = 0; i < SIZE_TEXTO; ++i)
 		printf("%x ",texto[i] );
 	printf("\n");
