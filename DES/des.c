@@ -1,3 +1,17 @@
+/*
+	Criptografia e Segurança de Redes – 01-2015
+	Lista de Exercícios 1 - Exercício 3
+	Four-Function Calculator in GF(2^8)
+
+	prob2.c	
+	Para compilar: gcc -o prob3 prob3.c -lm
+	Para executar: ./prob3
+
+	Alunos: Rodrigo Lopes Rincon          			Matrícula: 09/0131533						   
+			Thiago Almeida Nunes Guimarães					   09/0133641
+
+	Obs: Código desenvolvido em plataforma linux (Mint 16), utilizando editor sublime3 com letra tamanho 8 e espaçamento 6. 
+*/
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -235,8 +249,8 @@ unsigned char* permutacaoChave2(unsigned char *chave){
 	return chave_48bits;
 }
 
-//realiza o shift circular na chave, considerando que cada metade da chave é independente
-void circularShift(unsigned char *chave, int numero_round){
+//realiza o shift circular para esquerda na chave, considerando que cada metade da chave é independente
+void circularShiftEncripta(unsigned char *chave, int numero_round){
 	int num_byte;
 	unsigned char maior_bit_left, maior_bit_right;
 	switch(numero_round){
@@ -267,6 +281,41 @@ void circularShift(unsigned char *chave, int numero_round){
 				chave[num_byte] = chave[num_byte]<<2 | ( (chave[num_byte+1]&0xC0)>>6 );
 		}
 	}
+}
+
+//realiza o shift circular para direita na chave, considerando que cada metade da chave é independente
+void circularShiftDecripta(unsigned char *chave, int numero_round){
+	int num_byte;
+	unsigned char maior_bit_left, maior_bit_right;
+	switch(numero_round){
+	case 0:
+		break;
+	case 1:
+	case 8:
+	case 15:
+		maior_bit_left = (chave[3]&0x10)<<3;
+		maior_bit_right = (chave[6]&0x01)<<3;
+		for (num_byte = SIZE_CHAVE_REAL-1; num_byte >= 0; --num_byte){
+			if(num_byte == SIZE_CHAVE_REAL/2) //4º byte (fim da primeira metade e inicio da segunda), move apenas a segunda metade do byte, coloca o ultimo bit da chave no meio, da shift nos 3 primeiros bits descartando o 4º e completa com o ultimo bit do anterior
+				chave[num_byte] = (chave[num_byte]&0x0F)>>1 | maior_bit_right | (chave[num_byte]&0xE0)>>1 | (chave[num_byte-1]&0x01)<<7;
+			else if(num_byte == 0) //primeiro byte, completa com o ultimo bit da primeira metade (4º bit do 4º byte)
+				chave[num_byte] = chave[num_byte]>>1 | maior_bit_left;
+			else//os 3 ultimos bytes, o 2º e 3º	
+				chave[num_byte] = chave[num_byte]>>1 | ( (chave[num_byte-1]&0x01)<<7 );
+		}
+		break;
+	default:
+		maior_bit_left = (chave[3]&0x30)<<2;
+		maior_bit_right = (chave[6]&0x03)<<2;
+		for (num_byte = SIZE_CHAVE_REAL-1; num_byte >= 0; --num_byte){
+			if(num_byte == SIZE_CHAVE_REAL/2) //4º byte (fim da primeira metade e inicio da segunda), move apenas a segunda metade do byte, coloca os ultimos bit do ultimo byte no meio, da shift nos 2 ultimos bits descartando o 5º e 6º e completa com o 1º e 2º bit do proximo
+				chave[num_byte] = (chave[num_byte]&0x0F)>>2 | maior_bit_right | (chave[num_byte]&0xC0)>>2 | (chave[num_byte-1]&0x03)<<6;
+			else if(num_byte == 0) //primeiro byte, completa com os ultimos bits da primeira metade (3º e 4º bits do 4º byte)
+				chave[num_byte] = chave[num_byte]>>2 | maior_bit_left;
+			else//os 3 ultimos bytes, o 2º e 3º	
+				chave[num_byte] = chave[num_byte]>>2 | ( (chave[num_byte-1]&0x03)<<6 );
+		}
+	} 
 }
 
 //faz a troca final das duas metades do texto (esquerda e direita)
@@ -475,23 +524,34 @@ unsigned char* funcao_f(unsigned char *texto, unsigned char *chave){
 	return encript;
 }
 
-int main(){
-	
-	unsigned char texto[SIZE_TEXTO] = { 0x02, 0x46, 0x8a, 0xce, 0xec, 0xa8, 0x64, 0x20};
-	unsigned char chave[SIZE_TEXTO] = { 0x0f, 0x15, 0x71, 0xc9, 0x47, 0xd9, 0xe8, 0x59};
-	
+//realiza a encriptação e desencriptação (encripta de bool=1 e decripta se bool=0)
+void DES(unsigned char *texto, unsigned char *chave, char bool_encriptar){
 	permutacaoInicial(texto);	
 	unsigned char *chave_real = permutacaoChave1(chave);//transforma a chave de 64 para 56 bits
 	
+/*	int i;
+	printf("chave inicial: " );
+		for (i = 0; i < 7; ++i)
+			printf("%x ",chave_real[i] );
+		printf("\n");*/
+
 	int numero_round;
-	int i;
 	for (numero_round = 0; numero_round < NUM_ROUNDS; ++numero_round){
 		unsigned char *left_texto = NULL, *right_texto = NULL;
 		
 		left_texto = &texto[0];
 		right_texto = &texto[SIZE_TEXTO/2];
 		
-		circularShift(chave_real, numero_round);
+		if( bool_encriptar )
+			circularShiftEncripta(chave_real, numero_round);
+		else
+			circularShiftDecripta(chave_real, numero_round);
+		
+/*		printf("chave do round %d \n",numero_round );
+		for (i = 0; i < 7; ++i)
+			printf("%x ",chave_real[i] );
+		printf("\n");*/
+
 		unsigned char *chave_round = permutacaoChave2(chave_real);		
 
 		unsigned char *encript = funcao_f(right_texto,chave_round);
@@ -507,8 +567,46 @@ int main(){
 	}
 
 	swap32its(texto);
-	permutacaoInversa(texto);	
+	permutacaoInversa(texto);
+}
 
+int main(){
+	//Cabeçalho
+	printf("\n\n===========================================================================\n");
+	printf("\n\tCriptografia e Segurança de Redes – 01-2015\n");
+	printf("\tLista de Exercícios 1 - Exercício 1\n");
+	printf("\tAlgoritmo DES\n");
+	printf("\n\tAlunos: Rodrigo Lopes Rincon  	     	Matrícula: 09/0131533\n");
+	printf("\t        Thiago Almeida Nunes Guimarães             09/0133641\n\n");
+	printf("---------------------------------------------------------------------------\n");
+
+	//unsigned char texto[SIZE_TEXTO] = { 0x02, 0x46, 0x8a, 0xce, 0xec, 0xa8, 0x64, 0x20};
+	//unsigned char chave[SIZE_TEXTO] = { 0x0f, 0x15, 0x71, 0xc9, 0x47, 0xd9, 0xe8, 0x59};
+	unsigned char texto[SIZE_TEXTO];
+	unsigned char chave[SIZE_TEXTO];
+	char encriptar = 1;
+	printf("entre com um texto de 8 caracteres: \n");
+	gets(texto);
+	printf("entre com uma chave de 8 caracteres: \n");
+	gets(chave);
+
+	int i;
+	printf("ORIGINAL: ");
+	for (i = 0; i < SIZE_TEXTO; ++i)
+		printf("%x ",texto[i] );
+	printf("\n");
+
+	DES(texto,chave,encriptar);
+
+	printf("ENCRIPTADO: ");
+	for (i = 0; i < SIZE_TEXTO; ++i)
+		printf("%x ",texto[i] );
+	printf("\n");
+
+	encriptar = 0;
+	DES(texto,chave,encriptar);
+
+	printf("DESENCRIPTADO: ");
 	for (i = 0; i < SIZE_TEXTO; ++i)
 		printf("%x ",texto[i] );
 	printf("\n");
